@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: zookeeper
+    networks:
+      - pap-platform-network
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: kafka
+    networks:
+      - pap-platform-network
+    depends_on:
+      - zookeeper
+    ports:
+      # Exposes the Kafka broker on the port defined in .env for external connections
+      - "${KAFKA_EXTERNAL_PORT}:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      # Listeners configuration is key for connecting from both inside and outside Docker
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100 # Small delay for stability
+
+  # Optional but highly recommended UI for Kafka
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    container_name: redpanda-console
+    networks:
+      - pap-platform-network
+    depends_on:
+      - kafka
+    ports:
+      - "${REDPANDA_CONSOLE_PORT}:8080"
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+      # This allows the UI to create topics if needed
+      KAFKA_CREATE_TOPICS_ENABLE: "true"
+
+  # This service runs the topic creation script automatically
+  topic-creator:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: topic-creator
+    networks:
+      - pap-platform-network
+    depends_on:
+      - kafka
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka to be available...' &&
+        cub kafka-ready -b kafka:9092 1 30 &&
+        echo 'Kafka is ready!' &&
+        /etc/create-topics.sh
+      "
+    volumes:
+      # Mount the script into the container
+      - ./create-topics.sh:/etc/create-topics.sh
+
+# Defines a shared network for all services to communicate
+networks:
+  pap-platform-network:
+    driver: bridge
