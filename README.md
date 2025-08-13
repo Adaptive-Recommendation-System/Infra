@@ -24,7 +24,7 @@ This repository manages the shared infrastructure for the Plug-and-Play Agentic 
     From the root directory, run the following command. This will read the `.env` file and start the services defined in `kafka/docker-compose.yml`.
 
     ```bash
-    docker-compose -f kafka/docker-compose.yml --env-file .env up -d
+    docker-compose -f docker-compose.yml --env-file .env up -d
     ```
 
 3.  **Verify the services are running:**
@@ -35,7 +35,7 @@ This repository manages the shared infrastructure for the Plug-and-Play Agentic 
 
     You should see containers named `kafka`, `zookeeper`, `redpanda-console`, and `topic-creator`.
 
-4.  **Access the Kafka UI:**
+4.  **Access the Kafka UI (Redpanda Console):**
     Open your browser and navigate to [http://localhost:8080](http://localhost:8080) (or whichever port you defined in `.env`). You should be able to see the broker and the topics that were created.
 
 ## Connecting to Kafka from Other Services
